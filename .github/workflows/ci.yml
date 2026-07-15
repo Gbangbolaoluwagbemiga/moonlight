@@ -31,11 +31,11 @@ jobs:
       - name: Compile Compact contract
         run: npm run compact
 
+      - name: Build
+        run: npm run build
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Test
         run: npm test
-
-      - name: Build
-        run: npm run build
