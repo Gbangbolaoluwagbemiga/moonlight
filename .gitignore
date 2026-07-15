@@ -8,9 +8,6 @@ npm-debug.log*
 logs/
 *.log
 
-# Compact compiler output (regenerate with `npm run compact`)
-contract/src/managed/
-
 # Local state / secrets
 .env
 *.env
