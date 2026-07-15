@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js/network-id";
 import { OrderStatus } from "../managed/moonlight/contract/index.js";
@@ -97,6 +98,54 @@ describe("Moonlight work-order contract", () => {
     const id2 = postSampleOrder(sim);
     sim.as(FREELANCER).acceptOrder(id2);
     expect(() => sim.as(CLIENT).cancelOrder(id2)).toThrow(/open/);
+  });
+
+  it("never exposes raw private inputs in the public ledger state", () => {
+    const sim = new MoonlightSimulator();
+    const details = "Design a landing page for a Lagos fintech, 2 week turnaround";
+    const detailsPlaintext = new TextEncoder().encode(details);
+    const detailsCommitment = new Uint8Array(
+      createHash("sha256").update(details, "utf8").digest()
+    );
+    const secretBudget = 750n;
+    const salt = new Uint8Array(32).fill(3);
+
+    const id = sim.as(CLIENT).postOrder(detailsCommitment, secretBudget, salt);
+    sim.as(FREELANCER).acceptOrder(id);
+    const state = sim.getLedger();
+
+    // Collect every byte value the public ledger stores for this order.
+    const publicValues: Uint8Array[] = [
+      state.clients.lookup(id),
+      state.freelancers.lookup(id),
+      state.detailCommitments.lookup(id),
+      state.budgetCommitments.lookup(id)
+    ];
+
+    // Encodings of the private inputs that must never appear on-chain.
+    const budgetBytes = new Uint8Array(8);
+    new DataView(budgetBytes.buffer).setBigUint64(0, secretBudget);
+    const privateValues = [CLIENT, FREELANCER, salt, detailsPlaintext, budgetBytes];
+
+    const contains = (haystack: Uint8Array, needle: Uint8Array): boolean => {
+      if (needle.length === 0 || needle.length > haystack.length) return false;
+      outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
+        for (let j = 0; j < needle.length; j++) {
+          if (haystack[i + j] !== needle[j]) continue outer;
+        }
+        return true;
+      }
+      return false;
+    };
+
+    for (const stored of publicValues) {
+      for (const secret of privateValues) {
+        expect(contains(stored, secret)).toBe(false);
+      }
+    }
+
+    // The details commitment is the hash the client supplied — never the text.
+    expect(state.detailCommitments.lookup(id)).toEqual(detailsCommitment);
   });
 
   it("verifies the committed budget without revealing it on-chain", () => {
