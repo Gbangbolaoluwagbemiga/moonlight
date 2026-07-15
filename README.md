@@ -1,70 +1,73 @@
 # 🌙 Moonlight
 
-**A privacy-first freelance marketplace on [Midnight](https://midnight.network).**
+> A privacy-first freelance marketplace on [Midnight](https://midnight.network) — work orders whose details, budgets, and identities stay off the public ledger.
 
-Freelance platforms today leak everything: what you charge, who you work for, and how often. Moonlight keeps the *coordination* of freelance work on-chain while keeping the *content* of it private — job details, budgets, and identities never touch the public ledger.
+Built for the **Monthly Moonshots on Midnight** builder program. Current level: **Level 1 — New Moon** 🌑
 
-> Built for the **Monthly Moonshots on Midnight** builder program.
-> Current level: **Level 1 — New Moon** 🌑
+## Contract Address
 
-## The idea
+| Network | Address |
+|---------|---------|
+| Preview | _not deployed_ |
+| Preprod | _pending — will be published after first deployment_ |
 
-Moonlight is a freelance marketplace where the deal is on-chain but the details are not. Clients post work orders whose title, description, and budget exist on the public ledger only as cryptographic commitments; freelancers accept and deliver under pseudonymous identities derived in-circuit from local secret keys, so no wallet address is ever linked to an engagement. Rates, client lists, and work history — the data that today's freelance platforms expose to everyone including competitors — stay private, yet remain *provable*: any party can selectively disclose a committed value (like a budget) with a zero-knowledge proof when a dispute or an audit demands it. Later phases add private escrow and privately-computed reputation, giving freelancers in markets like Nigeria a way to build verifiable track records without publishing their income to the world.
+## What This Does
 
-## Privacy model
+Moonlight is an on-chain registry for freelance work orders. A client posts a job; a freelancer accepts it; the client marks it complete (or cancels it while it's still open). The twist is *what the chain gets to see*: the public ledger stores only the order's lifecycle status and cryptographic commitments. The job description, the budget, and the real identities of both parties never appear on-chain — yet the contract still enforces the rules ("only the client can complete this order", "you can't accept your own job") inside zero-knowledge circuits, and any committed value can later be *proven* without being revealed.
 
-The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.compact)) is a private work-order registry written in [Compact](https://docs.midnight.network/develop/reference/compact/), Midnight's zero-knowledge circuit language:
+The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.compact)) has 5 circuits: `postOrder`, `acceptOrder`, `completeOrder`, `cancelOrder`, and `verifyBudget`.
 
-| Data | On-chain representation | Who can see the real value |
-|---|---|---|
-| Job details (title, description) | SHA-256 commitment | Client (and whoever they share it with) |
-| Budget | Salted hash commitment | Client; provable on demand via `verifyBudget` |
-| Client / freelancer identity | In-circuit hash of a local secret key | Nobody — not even linkable to a wallet address |
-| Order status (`OPEN → ASSIGNED → COMPLETED/CANCELLED`) | Public enum | Everyone (minimum needed for coordination) |
+## Privacy Model
 
-Key mechanics:
-
-- **Inputs are private by default.** Every circuit argument is witness data; only values explicitly wrapped in `disclose()` and written to the ledger become public.
-- **Authorization without identification.** "Only the client can complete an order" is enforced by re-deriving the identity hash from the local secret key *inside the circuit* — no signature, no address, no doxxing.
-- **Selective disclosure.** `verifyBudget` proves a claimed budget matches the on-chain commitment without the ledger ever storing the amount.
+- **What is PUBLIC (on-chain, visible to anyone):**
+  - The order counter and each order's lifecycle status (`OPEN → ASSIGNED → COMPLETED/CANCELLED`)
+  - Commitments only: a SHA-256 hash of the job details, a salted hash of the budget, and identity hashes for client/freelancer
+- **What is PRIVATE (private witness, never on-chain):**
+  - `localSecretKey` — each participant's 32-byte secret key, supplied at proof time by their own machine ([witnesses.ts](contract/src/witnesses.ts)) and used only *inside* the circuit
+  - The plaintext job details, the budget amount, and the budget salt — these exist only on the client's device
+- **What the user PROVES without revealing:**
+  - *"I am this order's client"* — by re-deriving the identity hash from the secret key in-circuit (`completeOrder`/`cancelOrder`), with no signature or wallet address exposed
+  - *"I am not the client"* — freelancers prove they aren't self-dealing when accepting (`acceptOrder`)
+  - *"The budget I claim matches what was committed"* — `verifyBudget` checks a claimed amount + salt against the on-chain commitment without the ledger ever storing the amount
 
 ### Public state vs private witness
 
-The contract draws the line explicitly:
+- **Public ledger state** — everything declared with `export ledger` in [moonlight.compact](contract/src/moonlight.compact): replicated on every node, visible to anyone.
+- **Private witness** — the `witness localSecretKey(): Bytes<32>` declaration: caller-supplied data used inside the ZK circuit that never leaves the device.
+- **The `disclose()` boundary** — circuit parameters are private by default, and the compiler *refuses to compile* any flow where witness-derived data reaches the ledger without an explicit `disclose()`. Every disclosure in Moonlight is a deliberate, reviewable decision — see the `disclose(...)` calls in `postOrder` and friends.
 
-- **Public ledger state** — everything declared with `export ledger` in [moonlight.compact](contract/src/moonlight.compact): the order counter, per-order statuses, and the *commitments* (hashes) for details, budgets, and identities. This is replicated on every node and visible to anyone.
-- **Private witness** — the `witness localSecretKey(): Bytes<32>` declaration. A witness is data supplied by the caller's own machine at proof time (implemented in [witnesses.ts](contract/src/witnesses.ts)); it is used *inside* the ZK circuit but never leaves the device. Moonlight derives your marketplace identity from it in-circuit (`identity()`), which is how "only the client can complete this order" is enforced without revealing who the client is.
-- **The `disclose()` boundary** — circuit parameters are also private by default. The compiler *refuses to compile* any flow where witness-derived data reaches the ledger without an explicit `disclose()`, so every disclosure in Moonlight is a deliberate, reviewable decision — see the `disclose(...)` calls in `postOrder` and friends.
+## Tech Stack
 
-## Repository layout
-
-```
-contract/            Compact contract + TypeScript witness bindings
-  src/moonlight.compact    The contract (5 circuits)
-  src/witnesses.ts         Private state (local secret key)
-  src/test/                Simulator-based unit tests (vitest)
-cli/                 Deploy & interact with the contract on Preprod
-  src/api.ts               Wallet + provider plumbing, contract operations
-  src/cli.ts               Interactive marketplace menu
-```
+- **Midnight network** (Preprod / Preview) — privacy-first blockchain
+- **Compact** — Midnight's zero-knowledge circuit language (compiler 0.31.1 via compact devtools 0.5.1)
+- **TypeScript** — contract bindings, tests (vitest), and deploy CLI (`@midnight-ntwrk/midnight-js` 4.x + wallet SDK)
+- **Node.js ≥ 22**, npm workspaces
+- **Docker** — local proof server (`midnightntwrk/proof-server`)
 
 ## Prerequisites
 
-- Node.js ≥ 22, npm
+- Node.js ≥ 22 and npm
+- Docker (for the local proof server, required to deploy/interact)
 - [Compact developer tools](https://docs.midnight.network/getting-started/installation):
   ```sh
   curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
   compact update
   ```
-- Docker (for the local proof server, needed to deploy/interact)
 
-## Build & test
+## Setup
 
 ```sh
+git clone https://github.com/Gbangbolaoluwagbemiga/moonlight.git
+cd moonlight
 npm install
-npm run compact      # compile the Compact contract (generates ZK keys + TS API)
-npm test             # run the contract test suite (9 tests)
+npm run compact      # compile the Compact contract (generates ZK circuits + keys + TS API)
 npm run build        # build both packages
+```
+
+## Run Tests
+
+```sh
+npm test             # 10 simulator-based tests covering the full order lifecycle
 ```
 
 ## Deploy to Preprod
@@ -84,13 +87,36 @@ The CLI walks you through:
 3. Deploying the Moonlight contract (or joining an existing one by address)
 4. Posting, browsing, accepting, completing, and cancelling work orders — each action generates a real ZK proof
 
-**Deployed contract (Preprod):** _pending — address will be published here after first deployment_
+## Repository Layout
+
+```
+contract/            Compact contract + TypeScript witness bindings
+  src/moonlight.compact    The contract (5 circuits)
+  src/witnesses.ts         Private witness (local secret key)
+  src/managed/             Generated: ZK circuits, prover/verifier keys, TS API
+  src/test/                Simulator-based unit tests (vitest)
+cli/                 Deploy & interact with the contract on Preprod
+  src/api.ts               Wallet + provider plumbing, contract operations
+  src/cli.ts               Interactive marketplace menu
+docs/                Submission notes, compile output, screenshots
+.github/workflows/   CI: compile contract + run tests on every push
+```
+
+## Initial Idea
+
+Moonlight is a freelance marketplace where the deal is on-chain but the details are not. Clients post work orders whose title, description, and budget exist on the public ledger only as cryptographic commitments; freelancers accept and deliver under pseudonymous identities derived in-circuit from local secret keys, so no wallet address is ever linked to an engagement. Rates, client lists, and work history — the data that today's freelance platforms expose to everyone including competitors — stay private, yet remain *provable*: any party can selectively disclose a committed value (like a budget) with a zero-knowledge proof when a dispute or an audit demands it. Later phases add private escrow and privately-computed reputation, giving freelancers in markets like Nigeria a way to build verifiable track records without publishing their income to the world.
+
+## Screenshots
+
+_See [docs/screenshots/](docs/screenshots/) — compile output and deployed contract address screenshots will be added here._
+
+Compile output (text capture): [docs/compile-output.txt](docs/compile-output.txt)
 
 ## Roadmap (lunar cycle)
 
 - 🌑 **Level 1 — New Moon:** toolchain, first contract, Preprod deployment ← *you are here*
 - 🌒 **Level 2 — Waxing Crescent:** React frontend + Lace wallet connection
-- 🌓 **Level 3 — First Quarter:** polished dApp, CI/CD, program problem statement
+- 🌓 **Level 3 — First Quarter:** polished dApp, CI/CD, private escrow, program problem statement
 - 🌔 **Level 4 — Waxing Gibbous:** MVP live on Preprod with docs + public profile
 - 🌕 **Level 5 — Full Moon:** feedback loop, 50 Preprod users
 - 🌝 **Level 6 — Supermoon:** Mainnet launch, 20 real users
