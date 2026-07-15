@@ -1,4 +1,4 @@
-// Run the Moonlight CLI against Preprod, starting a local proof server
+// Run the Oru CLI against Preprod, starting a local proof server
 // container automatically via docker compose (proof-server.yml).
 
 import { createLogger } from './logger-utils.js';

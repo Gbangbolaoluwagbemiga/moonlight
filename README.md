@@ -1,4 +1,4 @@
-# 🌙 Moonlight
+# 🌙 Oru
 
 > A privacy-first freelance marketplace on [Midnight](https://midnight.network) — work orders whose details, budgets, and identities stay off the public ledger.
 
@@ -13,9 +13,9 @@ Built for the **Monthly Moonshots on Midnight** builder program. Current level: 
 
 ## What This Does
 
-Moonlight is an on-chain registry for freelance work orders. A client posts a job; a freelancer accepts it; the client marks it complete (or cancels it while it's still open). The twist is *what the chain gets to see*: the public ledger stores only the order's lifecycle status and cryptographic commitments. The job description, the budget, and the real identities of both parties never appear on-chain — yet the contract still enforces the rules ("only the client can complete this order", "you can't accept your own job") inside zero-knowledge circuits, and any committed value can later be *proven* without being revealed.
+Oru is an on-chain registry for freelance work orders. A client posts a job; a freelancer accepts it; the client marks it complete (or cancels it while it's still open). The twist is *what the chain gets to see*: the public ledger stores only the order's lifecycle status and cryptographic commitments. The job description, the budget, and the real identities of both parties never appear on-chain — yet the contract still enforces the rules ("only the client can complete this order", "you can't accept your own job") inside zero-knowledge circuits, and any committed value can later be *proven* without being revealed.
 
-The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.compact)) has 5 circuits: `postOrder`, `acceptOrder`, `completeOrder`, `cancelOrder`, and `verifyBudget`.
+The Level 1 contract ([contract/src/oru.compact](contract/src/oru.compact)) has 5 circuits: `postOrder`, `acceptOrder`, `completeOrder`, `cancelOrder`, and `verifyBudget`.
 
 ## Privacy Model
 
@@ -32,9 +32,9 @@ The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.co
 
 ### Public state vs private witness
 
-- **Public ledger state** — everything declared with `export ledger` in [moonlight.compact](contract/src/moonlight.compact): replicated on every node, visible to anyone.
+- **Public ledger state** — everything declared with `export ledger` in [oru.compact](contract/src/oru.compact): replicated on every node, visible to anyone.
 - **Private witness** — the `witness localSecretKey(): Bytes<32>` declaration: caller-supplied data used inside the ZK circuit that never leaves the device.
-- **The `disclose()` boundary** — circuit parameters are private by default, and the compiler *refuses to compile* any flow where witness-derived data reaches the ledger without an explicit `disclose()`. Every disclosure in Moonlight is a deliberate, reviewable decision — see the `disclose(...)` calls in `postOrder` and friends.
+- **The `disclose()` boundary** — circuit parameters are private by default, and the compiler *refuses to compile* any flow where witness-derived data reaches the ledger without an explicit `disclose()`. Every disclosure in Oru is a deliberate, reviewable decision — see the `disclose(...)` calls in `postOrder` and friends.
 
 ## Tech Stack
 
@@ -57,8 +57,8 @@ The Level 1 contract ([contract/src/moonlight.compact](contract/src/moonlight.co
 ## Setup
 
 ```sh
-git clone https://github.com/Gbangbolaoluwagbemiga/moonlight.git
-cd moonlight
+git clone https://github.com/Gbangbolaoluwagbemiga/oru.git
+cd oru
 npm install
 npm run compact      # compile the Compact contract (generates ZK circuits + keys + TS API)
 npm run build        # build both packages
@@ -84,14 +84,14 @@ The CLI walks you through:
 
 1. Creating or restoring a wallet (fund it with tNight from the [Preprod faucet](https://faucet.preprod.midnight.network/))
 2. Registering NIGHT UTXOs for DUST generation (DUST pays transaction fees)
-3. Deploying the Moonlight contract (or joining an existing one by address)
+3. Deploying the Oru contract (or joining an existing one by address)
 4. Posting, browsing, accepting, completing, and cancelling work orders — each action generates a real ZK proof
 
 ## Repository Layout
 
 ```
 contract/            Compact contract + TypeScript witness bindings
-  src/moonlight.compact    The contract (5 circuits)
+  src/oru.compact          The contract (5 circuits)
   src/witnesses.ts         Private witness (local secret key)
   src/managed/             Generated: ZK circuits, prover/verifier keys, TS API
   src/test/                Simulator-based unit tests (vitest)
@@ -104,7 +104,7 @@ docs/                Submission notes, compile output, screenshots
 
 ## Initial Idea
 
-Moonlight is a freelance marketplace where the deal is on-chain but the details are not. Clients post work orders whose title, description, and budget exist on the public ledger only as cryptographic commitments; freelancers accept and deliver under pseudonymous identities derived in-circuit from local secret keys, so no wallet address is ever linked to an engagement. Rates, client lists, and work history — the data that today's freelance platforms expose to everyone including competitors — stay private, yet remain *provable*: any party can selectively disclose a committed value (like a budget) with a zero-knowledge proof when a dispute or an audit demands it. Later phases add private escrow and privately-computed reputation, giving freelancers in markets like Nigeria a way to build verifiable track records without publishing their income to the world.
+Oru is a freelance marketplace where the deal is on-chain but the details are not. Clients post work orders whose title, description, and budget exist on the public ledger only as cryptographic commitments; freelancers accept and deliver under pseudonymous identities derived in-circuit from local secret keys, so no wallet address is ever linked to an engagement. Rates, client lists, and work history — the data that today's freelance platforms expose to everyone including competitors — stay private, yet remain *provable*: any party can selectively disclose a committed value (like a budget) with a zero-knowledge proof when a dispute or an audit demands it. Later phases add private escrow and privately-computed reputation, giving freelancers in markets like Nigeria a way to build verifiable track records without publishing their income to the world.
 
 ## Screenshots
 
@@ -123,7 +123,7 @@ Compile output (text capture): [docs/compile-output.txt](docs/compile-output.txt
 
 ## Acknowledgements
 
-Wallet and provider plumbing in `cli/` is adapted from the official [midnightntwrk/example-counter](https://github.com/midnightntwrk/example-counter) (Apache-2.0), including its documented workarounds for wallet SDK signing issues. The contract, tests, and marketplace logic are Moonlight's own.
+Wallet and provider plumbing in `cli/` is adapted from the official [midnightntwrk/example-counter](https://github.com/midnightntwrk/example-counter) (Apache-2.0), including its documented workarounds for wallet SDK signing issues. The contract, tests, and marketplace logic are Oru's own.
 
 ## License
 

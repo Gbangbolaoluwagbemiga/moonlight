@@ -1,12 +1,12 @@
-// Non-interactive Preprod deployment for Moonlight.
+// Non-interactive Preprod deployment for Oru.
 //
 // Flow:
-//   1. Load the wallet seed from $MOONLIGHT_SEED or cli/wallet.seed,
+//   1. Load the wallet seed from $ORU_SEED or cli/wallet.seed,
 //      generating (and saving) a fresh one if neither exists.
 //   2. Build the wallet, print the unshielded address, and wait for tNight
 //      (fund it at https://faucet.preprod.midnight.network/).
 //   3. Register NIGHT UTXOs for DUST, wait for fee tokens to generate.
-//   4. Deploy the Moonlight contract and print/save its address.
+//   4. Deploy the Oru contract and print/save its address.
 //
 // Requires a proof server on http://localhost:6300.
 
@@ -21,7 +21,7 @@ const logger = await createLogger(config.logDir);
 api.setLogger(logger);
 
 const seedPath = path.resolve(currentDir, '..', 'wallet.seed');
-let seed = process.env.MOONLIGHT_SEED ?? '';
+let seed = process.env.ORU_SEED ?? '';
 if (!seed && fs.existsSync(seedPath)) {
   seed = fs.readFileSync(seedPath, 'utf8').trim();
   console.log(`Using existing wallet seed from ${seedPath}`);
@@ -36,9 +36,9 @@ if (!seed) {
 
 const walletCtx = await api.buildWalletAndWaitForFunds(config, seed);
 const providers = await api.configureProviders(walletCtx, config);
-const privateState = api.createMoonlightPrivateState(api.deriveMoonlightSecretKey(seed));
+const privateState = api.createOruPrivateState(api.deriveOruSecretKey(seed));
 
-const contract = await api.withStatus('Deploying Moonlight contract (generating ZK proof)', () =>
+const contract = await api.withStatus('Deploying Oru contract (generating ZK proof)', () =>
   api.deploy(providers, privateState),
 );
 const address = contract.deployTxData.public.contractAddress;

@@ -5,10 +5,10 @@ Status against the Rise In requirements:
 | Requirement | Status |
 |---|---|
 | Toolchain installed, contract compiles via `compact compile` | ✅ compact 0.5.1 / compiler 0.31.1 — see [compile-output.txt](compile-output.txt) |
-| Passing test suite | ✅ 9/9 (`npm test`) |
-| Generated `managed/` directory present (circuits + keys) | ✅ committed at [contract/src/managed/moonlight](../contract/src/managed/moonlight) |
+| Passing test suite | ✅ 10/10 (`npm test`) |
+| Generated `managed/` directory present (circuits + keys) | ✅ committed at [contract/src/managed/oru](../contract/src/managed/oru) |
 | Contract deployed to Preview or Preprod with visible address | ⏳ pending — see below |
-| Initial product idea paragraph in README | ✅ ["The idea"](../README.md#the-idea) |
+| Initial product idea paragraph in README | ✅ ["Initial Idea"](../README.md#initial-idea) |
 | README section: public state vs private witness | ✅ ["Public state vs private witness"](../README.md#public-state-vs-private-witness) |
 | Minimum 5 meaningful commits | ✅ see `git log --oneline` |
 | Screenshot: successful compile output | ⏳ run `npm run compact` and capture the terminal |
@@ -35,6 +35,6 @@ npm run preprod-ps --workspace cli   # auto-starts the proof server container
 ```
 
 Choose "Create a new wallet", fund the printed address, let the CLI register
-NIGHT for DUST generation, then "Deploy a new Moonlight contract". The
+NIGHT for DUST generation, then "Deploy a new Oru contract". The
 deployed address is printed on success — capture the screenshot and update
 the README's "Deployed contract (Preprod)" line.

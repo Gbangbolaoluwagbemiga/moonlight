@@ -1,15 +1,15 @@
-// Moonlight CLI — contract deployment and interaction API.
+// Oru CLI — contract deployment and interaction API.
 //
 // Wallet/provider plumbing adapted from midnightntwrk/example-counter
 // (Apache-2.0, Copyright (C) Midnight Foundation), including its documented
 // workarounds for wallet SDK signing bugs. Contract-specific logic
-// (work orders, commitments, identity derivation) is Moonlight's own.
+// (work orders, commitments, identity derivation) is Oru's own.
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { createHash, randomBytes } from 'node:crypto';
 import { type ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { Moonlight, type MoonlightPrivateState, createMoonlightPrivateState, witnesses } from '@moonlight/contract';
+import { Oru, type OruPrivateState, createOruPrivateState, witnesses } from '@oru/contract';
 import * as ledger from '@midnight-ntwrk/ledger-v8';
 import { unshieldedToken } from '@midnight-ntwrk/ledger-v8';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js/contracts';
@@ -32,10 +32,10 @@ import { type Logger } from 'pino';
 import * as Rx from 'rxjs';
 import { WebSocket } from 'ws';
 import {
-  type MoonlightCircuits,
-  type MoonlightProviders,
-  type DeployedMoonlightContract,
-  MoonlightPrivateStateId,
+  type OruCircuits,
+  type OruProviders,
+  type DeployedOruContract,
+  OruPrivateStateId,
 } from './common-types';
 import { type Config, contractConfig } from './config';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
@@ -56,8 +56,8 @@ let logger: Logger;
 // @ts-expect-error: It's needed to enable WebSocket usage through apollo
 globalThis.WebSocket = WebSocket;
 
-// Pre-compile the Moonlight contract with its witnesses and ZK circuit assets
-const moonlightCompiledContract = CompiledContract.make('moonlight', Moonlight.Contract).pipe(
+// Pre-compile the Oru contract with its witnesses and ZK circuit assets
+const oruCompiledContract = CompiledContract.make('oru', Oru.Contract).pipe(
   CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
 );
@@ -69,7 +69,7 @@ export interface WalletContext {
   unshieldedKeystore: UnshieldedKeystore;
 }
 
-// ─── Moonlight helpers ──────────────────────────────────────────────────────
+// ─── Oru helpers ──────────────────────────────────────────────────────
 
 /** Hash arbitrary job details (title/description) into a 32-byte commitment. */
 export const hashDetails = (details: string): Uint8Array =>
@@ -79,40 +79,40 @@ export const hashDetails = (details: string): Uint8Array =>
 export const randomSalt = (): Uint8Array => new Uint8Array(randomBytes(32));
 
 /**
- * Derive the Moonlight marketplace secret key deterministically from the
+ * Derive the Oru marketplace secret key deterministically from the
  * wallet seed, so a user's marketplace identity is recoverable from the same
  * seed as their funds — while remaining unlinkable on-chain (only its hash,
  * further hashed in-circuit, ever appears).
  */
-export const deriveMoonlightSecretKey = (walletSeedHex: string): Uint8Array =>
-  new Uint8Array(createHash('sha256').update(`moonlight:sk:${walletSeedHex}`, 'utf8').digest());
+export const deriveOruSecretKey = (walletSeedHex: string): Uint8Array =>
+  new Uint8Array(createHash('sha256').update(`oru:sk:${walletSeedHex}`, 'utf8').digest());
 
 export const ORDER_STATUS_NAMES: Record<number, string> = {
-  [Moonlight.OrderStatus.OPEN]: 'OPEN',
-  [Moonlight.OrderStatus.ASSIGNED]: 'ASSIGNED',
-  [Moonlight.OrderStatus.COMPLETED]: 'COMPLETED',
-  [Moonlight.OrderStatus.CANCELLED]: 'CANCELLED',
+  [Oru.OrderStatus.OPEN]: 'OPEN',
+  [Oru.OrderStatus.ASSIGNED]: 'ASSIGNED',
+  [Oru.OrderStatus.COMPLETED]: 'COMPLETED',
+  [Oru.OrderStatus.CANCELLED]: 'CANCELLED',
 };
 
-export const getMoonlightLedgerState = async (
-  providers: MoonlightProviders,
+export const getOruLedgerState = async (
+  providers: OruProviders,
   contractAddress: ContractAddress,
-): Promise<Moonlight.Ledger | null> => {
+): Promise<Oru.Ledger | null> => {
   assertIsContractAddress(contractAddress);
   const contractState = await providers.publicDataProvider.queryContractState(contractAddress);
-  return contractState != null ? Moonlight.ledger(contractState.data) : null;
+  return contractState != null ? Oru.ledger(contractState.data) : null;
 };
 
 // ─── Contract operations ────────────────────────────────────────────────────
 
 export const deploy = async (
-  providers: MoonlightProviders,
-  privateState: MoonlightPrivateState,
-): Promise<DeployedMoonlightContract> => {
-  logger.info('Deploying Moonlight contract...');
+  providers: OruProviders,
+  privateState: OruPrivateState,
+): Promise<DeployedOruContract> => {
+  logger.info('Deploying Oru contract...');
   const contract = await deployContract(providers, {
-    compiledContract: moonlightCompiledContract,
-    privateStateId: MoonlightPrivateStateId,
+    compiledContract: oruCompiledContract,
+    privateStateId: OruPrivateStateId,
     initialPrivateState: privateState,
   });
   logger.info(`Deployed contract at address: ${contract.deployTxData.public.contractAddress}`);
@@ -120,14 +120,14 @@ export const deploy = async (
 };
 
 export const joinContract = async (
-  providers: MoonlightProviders,
+  providers: OruProviders,
   contractAddress: string,
-  privateState: MoonlightPrivateState,
-): Promise<DeployedMoonlightContract> => {
+  privateState: OruPrivateState,
+): Promise<DeployedOruContract> => {
   const contract = await findDeployedContract(providers, {
     contractAddress,
-    compiledContract: moonlightCompiledContract,
-    privateStateId: MoonlightPrivateStateId,
+    compiledContract: oruCompiledContract,
+    privateStateId: OruPrivateStateId,
     initialPrivateState: privateState,
   });
   logger.info(`Joined contract at address: ${contract.deployTxData.public.contractAddress}`);
@@ -147,7 +147,7 @@ export interface PostedOrder {
  * budget salt — the salt must be saved to later prove the budget amount.
  */
 export const postOrder = async (
-  contract: DeployedMoonlightContract,
+  contract: DeployedOruContract,
   details: string,
   budget: bigint,
 ): Promise<PostedOrder> => {
@@ -161,23 +161,23 @@ export const postOrder = async (
   };
 };
 
-export const acceptOrder = async (contract: DeployedMoonlightContract, orderId: bigint) => {
+export const acceptOrder = async (contract: DeployedOruContract, orderId: bigint) => {
   const finalized = await contract.callTx.acceptOrder(orderId);
   return finalized.public;
 };
 
-export const completeOrder = async (contract: DeployedMoonlightContract, orderId: bigint) => {
+export const completeOrder = async (contract: DeployedOruContract, orderId: bigint) => {
   const finalized = await contract.callTx.completeOrder(orderId);
   return finalized.public;
 };
 
-export const cancelOrder = async (contract: DeployedMoonlightContract, orderId: bigint) => {
+export const cancelOrder = async (contract: DeployedOruContract, orderId: bigint) => {
   const finalized = await contract.callTx.cancelOrder(orderId);
   return finalized.public;
 };
 
 export const verifyBudget = async (
-  contract: DeployedMoonlightContract,
+  contract: DeployedOruContract,
   orderId: bigint,
   budget: bigint,
   salt: Uint8Array,
@@ -188,13 +188,13 @@ export const verifyBudget = async (
 
 /** Print the public order book: statuses and commitments only, never plaintext. */
 export const displayOrders = async (
-  providers: MoonlightProviders,
-  contract: DeployedMoonlightContract,
+  providers: OruProviders,
+  contract: DeployedOruContract,
 ): Promise<void> => {
   const contractAddress = contract.deployTxData.public.contractAddress;
-  const state = await getMoonlightLedgerState(providers, contractAddress);
+  const state = await getOruLedgerState(providers, contractAddress);
   if (state === null) {
-    console.log(`  No Moonlight contract found at ${contractAddress}.`);
+    console.log(`  No Oru contract found at ${contractAddress}.`);
     return;
   }
   console.log(`\n  Order book (${state.orderCount} order${state.orderCount === 1n ? '' : 's'} posted)`);
@@ -573,11 +573,11 @@ ${DIV}
  */
 export const configureProviders = async (ctx: WalletContext, config: Config) => {
   const walletAndMidnightProvider = await createWalletAndMidnightProvider(ctx);
-  const zkConfigProvider = new NodeZkConfigProvider<MoonlightCircuits>(contractConfig.zkConfigPath);
+  const zkConfigProvider = new NodeZkConfigProvider<OruCircuits>(contractConfig.zkConfigPath);
   const accountId = walletAndMidnightProvider.getCoinPublicKey();
   const storagePassword = `${Buffer.from(accountId, 'hex').toString('base64')}!`;
   return {
-    privateStateProvider: levelPrivateStateProvider<typeof MoonlightPrivateStateId>({
+    privateStateProvider: levelPrivateStateProvider<typeof OruPrivateStateId>({
       privateStateStoreName: contractConfig.privateStateStoreName,
       accountId,
       privateStoragePasswordProvider: () => storagePassword,
@@ -658,4 +658,4 @@ export function setLogger(_logger: Logger) {
   logger = _logger;
 }
 
-export { createMoonlightPrivateState };
+export { createOruPrivateState };

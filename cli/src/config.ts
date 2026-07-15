@@ -10,8 +10,8 @@ import { setNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
 export const currentDir = path.resolve(fileURLToPath(import.meta.url), '..');
 
 export const contractConfig = {
-  privateStateStoreName: 'moonlight-private-state',
-  zkConfigPath: path.resolve(currentDir, '..', '..', 'contract', 'src', 'managed', 'moonlight'),
+  privateStateStoreName: 'oru-private-state',
+  zkConfigPath: path.resolve(currentDir, '..', '..', 'contract', 'src', 'managed', 'oru'),
 };
 
 export interface Config {

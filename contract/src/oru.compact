@@ -1,0 +1,95 @@
+// Oru — a privacy-first freelance marketplace on Midnight.
+//
+// Level 1 contract: a private work-order registry.
+//
+// Privacy model:
+//   - Job details (title, description) never touch the chain; only a
+//     commitment (hash) of them is stored, so a client can later prove
+//     what was agreed without ever publishing it.
+//   - The budget is committed with a salt, hidden from the public ledger.
+//   - Client and freelancer identities are salted hashes of local secret
+//     keys, never wallet addresses.
+//   - Only the order lifecycle status is public, which is the minimum
+//     needed for coordination.
+
+pragma language_version >= 0.20;
+
+import CompactStandardLibrary;
+
+export enum OrderStatus {
+  OPEN,
+  ASSIGNED,
+  COMPLETED,
+  CANCELLED
+}
+
+// Public state: one entry per work order, keyed by sequential id.
+export ledger orderCount: Counter;
+export ledger statuses: Map<Field, OrderStatus>;
+export ledger clients: Map<Field, Bytes<32>>;
+export ledger freelancers: Map<Field, Bytes<32>>;
+export ledger detailCommitments: Map<Field, Bytes<32>>;
+export ledger budgetCommitments: Map<Field, Bytes<32>>;
+
+// Private state: each participant holds a local secret key that never
+// leaves their machine. Circuits derive a public identity from it.
+witness localSecretKey(): Bytes<32>;
+
+circuit identity(): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "oru:pk:"), localSecretKey()]);
+}
+
+circuit commitBudget(budget: Uint<64>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([salt, budget as Field as Bytes<32>]);
+}
+
+// A client posts a work order. The job details and budget are private
+// inputs; only their commitments are disclosed to the ledger.
+export circuit postOrder(detailsHash: Bytes<32>, budget: Uint<64>, budgetSalt: Bytes<32>): Field {
+  const id = orderCount as Field;
+  orderCount.increment(1);
+  statuses.insert(id, OrderStatus.OPEN);
+  clients.insert(id, disclose(identity()));
+  detailCommitments.insert(id, disclose(detailsHash));
+  budgetCommitments.insert(id, disclose(commitBudget(budget, budgetSalt)));
+  return id;
+}
+
+// A freelancer accepts an open order. Their identity is a hash, so the
+// public ledger never links a wallet address to the engagement.
+export circuit acceptOrder(orderId: Field): [] {
+  const id = disclose(orderId);
+  assert(statuses.member(id), "Order does not exist");
+  assert(statuses.lookup(id) == OrderStatus.OPEN, "Order is not open");
+  const freelancer = identity();
+  assert(!(clients.lookup(id) == freelancer), "Client cannot accept their own order");
+  freelancers.insert(id, disclose(freelancer));
+  statuses.insert(id, OrderStatus.ASSIGNED);
+}
+
+// Only the original client can mark an assigned order complete. The proof
+// of "I am the client" happens in-circuit against the stored identity hash.
+export circuit completeOrder(orderId: Field): [] {
+  const id = disclose(orderId);
+  assert(statuses.member(id), "Order does not exist");
+  assert(statuses.lookup(id) == OrderStatus.ASSIGNED, "Order is not assigned");
+  assert(clients.lookup(id) == identity(), "Only the client can complete an order");
+  statuses.insert(id, OrderStatus.COMPLETED);
+}
+
+// Only the client can cancel, and only while the order is still open.
+export circuit cancelOrder(orderId: Field): [] {
+  const id = disclose(orderId);
+  assert(statuses.member(id), "Order does not exist");
+  assert(statuses.lookup(id) == OrderStatus.OPEN, "Only open orders can be cancelled");
+  assert(clients.lookup(id) == identity(), "Only the client can cancel an order");
+  statuses.insert(id, OrderStatus.CANCELLED);
+}
+
+// Prove that a claimed budget matches the on-chain commitment without the
+// ledger ever storing the amount itself.
+export circuit verifyBudget(orderId: Field, budget: Uint<64>, salt: Bytes<32>): Boolean {
+  const id = disclose(orderId);
+  assert(budgetCommitments.member(id), "Order does not exist");
+  return disclose(budgetCommitments.lookup(id) == commitBudget(budget, salt));
+}

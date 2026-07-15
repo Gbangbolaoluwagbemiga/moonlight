@@ -1,5 +1,5 @@
 {
-  "name": "@moonlight/cli",
+  "name": "@oru/cli",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "private": true,
@@ -13,7 +13,7 @@
     "preprod-ps": "docker compose -f proof-server.yml pull && node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preprod-start-proof-server.ts"
   },
   "dependencies": {
-    "@moonlight/contract": "*",
+    "@oru/contract": "*",
     "testcontainers": "^12.0.1",
     "ts-node": "^10.9.2"
   }

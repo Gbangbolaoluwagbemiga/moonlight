@@ -1,4 +1,4 @@
-// Run the Moonlight CLI against the Preview network, assuming a proof server
+// Run the Oru CLI against the Preview network, assuming a proof server
 // is already running locally on port 6300.
 
 import { createLogger } from './logger-utils.js';

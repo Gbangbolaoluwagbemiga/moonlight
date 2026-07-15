@@ -1,7 +1,7 @@
 {
-  "name": "moonlight",
+  "name": "oru",
   "version": "0.1.0",
-  "description": "Moonlight \u2014 a privacy-first freelance marketplace on Midnight",
+  "description": "Oru \u2014 a privacy-first freelance marketplace on Midnight",
   "private": true,
   "type": "module",
   "workspaces": [

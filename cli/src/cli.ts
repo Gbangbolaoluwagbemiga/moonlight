@@ -1,4 +1,4 @@
-// Moonlight CLI — interactive marketplace loop.
+// Oru CLI — interactive marketplace loop.
 //
 // Menu/flow structure adapted from midnightntwrk/example-counter
 // (Apache-2.0, Copyright (C) Midnight Foundation).
@@ -8,7 +8,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 import { type Logger } from 'pino';
 import { type StartedDockerComposeEnvironment, type DockerComposeEnvironment } from 'testcontainers';
-import { type MoonlightProviders, type DeployedMoonlightContract } from './common-types';
+import { type OruProviders, type DeployedOruContract } from './common-types';
 import { type Config, StandaloneConfig } from './config';
 import * as api from './api';
 import { toHex } from '@midnight-ntwrk/midnight-js/utils';
@@ -27,8 +27,8 @@ const GENESIS_MINT_WALLET_SEED = '0000000000000000000000000000000000000000000000
 const BANNER = `
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║              M O O N L I G H T                               ║
-║              ─────────────────                               ║
+║              O R U                                           ║
+║              ─────                                           ║
 ║        A privacy-first freelance marketplace                 ║
 ║              built on Midnight                               ║
 ║                                                              ║
@@ -53,8 +53,8 @@ const contractMenu = (dustBalance: string) => `
 ${DIVIDER}
   Contract Setup${dustBalance ? `                      DUST: ${dustBalance}` : ''}
 ${DIVIDER}
-  [1] Deploy a new Moonlight contract
-  [2] Join an existing Moonlight contract
+  [1] Deploy a new Oru contract
+  [2] Join an existing Oru contract
   [3] Monitor DUST balance
   [4] Exit
 ${'─'.repeat(62)}
@@ -62,7 +62,7 @@ ${'─'.repeat(62)}
 
 const marketplaceMenu = (dustBalance: string) => `
 ${DIVIDER}
-  Moonlight Marketplace${dustBalance ? `               DUST: ${dustBalance}` : ''}
+  Oru Marketplace${dustBalance ? `               DUST: ${dustBalance}` : ''}
 ${DIVIDER}
   [1] Post a work order        (client — details stay private)
   [2] Browse the order book    (public statuses + commitments)
@@ -84,7 +84,7 @@ const buildWalletFromSeed = async (config: Config, rli: Interface): Promise<[Wal
 
 /**
  * Wallet creation flow. Returns the wallet context plus the seed, which is
- * also used to derive the Moonlight marketplace identity key.
+ * also used to derive the Oru marketplace identity key.
  */
 const buildWallet = async (config: Config, rli: Interface): Promise<[WalletContext, string] | null> => {
   if (config instanceof StandaloneConfig) {
@@ -155,19 +155,19 @@ const printErrorChain = (e: unknown): void => {
 };
 
 const deployOrJoin = async (
-  providers: MoonlightProviders,
+  providers: OruProviders,
   walletCtx: WalletContext,
   privateStateSeed: string,
   rli: Interface,
-): Promise<DeployedMoonlightContract | null> => {
-  const privateState = api.createMoonlightPrivateState(api.deriveMoonlightSecretKey(privateStateSeed));
+): Promise<DeployedOruContract | null> => {
+  const privateState = api.createOruPrivateState(api.deriveOruSecretKey(privateStateSeed));
   while (true) {
     const dustLabel = await getDustLabel(walletCtx.wallet);
     const choice = await rli.question(contractMenu(dustLabel));
     switch (choice.trim()) {
       case '1':
         try {
-          const contract = await api.withStatus('Deploying Moonlight contract', () =>
+          const contract = await api.withStatus('Deploying Oru contract', () =>
             api.deploy(providers, privateState),
           );
           console.log(`  Contract deployed at: ${contract.deployTxData.public.contractAddress}\n`);
@@ -209,7 +209,7 @@ const askOrderId = async (rli: Interface): Promise<bigint | null> => {
  * Main marketplace loop: post, browse, accept, complete, cancel, verify.
  */
 const mainLoop = async (
-  providers: MoonlightProviders,
+  providers: OruProviders,
   walletCtx: WalletContext,
   privateStateSeed: string,
   rli: Interface,
@@ -339,10 +339,10 @@ export const run = async (config: Config, _logger: Logger, dockerEnv?: DockerCom
       env = await dockerEnv.up();
 
       if (config instanceof StandaloneConfig) {
-        config.indexer = mapContainerPort(env, config.indexer, 'moonlight-indexer');
-        config.indexerWS = mapContainerPort(env, config.indexerWS, 'moonlight-indexer');
-        config.node = mapContainerPort(env, config.node, 'moonlight-node');
-        config.proofServer = mapContainerPort(env, config.proofServer, 'moonlight-proof-server');
+        config.indexer = mapContainerPort(env, config.indexer, 'oru-indexer');
+        config.indexerWS = mapContainerPort(env, config.indexerWS, 'oru-indexer');
+        config.node = mapContainerPort(env, config.node, 'oru-node');
+        config.proofServer = mapContainerPort(env, config.proofServer, 'oru-proof-server');
       }
     }
 
