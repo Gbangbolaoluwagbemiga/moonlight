@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { TextEncoder } from "node:util";
 import { describe, it, expect } from "vitest";
 import { setNetworkId } from "@midnight-ntwrk/midnight-js/network-id";
 import { OrderStatus } from "../managed/moonlight/contract/index.js";
