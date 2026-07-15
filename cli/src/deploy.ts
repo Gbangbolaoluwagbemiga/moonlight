@@ -38,8 +38,20 @@ const walletCtx = await api.buildWalletAndWaitForFunds(config, seed);
 const providers = await api.configureProviders(walletCtx, config);
 const privateState = api.createOruPrivateState(api.deriveOruSecretKey(seed));
 
+// The public preprod RPC intermittently stalls its WebSocket init, which
+// leaves the submission awaiting a dead connection forever. Watchdog: bail
+// out after 5 minutes so an outer retry loop can take a clean attempt.
+const DEPLOY_TIMEOUT_MS = 5 * 60 * 1000;
+const watchdog = new Promise<never>((_, reject) => {
+  const t = setTimeout(
+    () => reject(new Error(`Deploy did not complete within ${DEPLOY_TIMEOUT_MS / 60000} minutes (stalled RPC?)`)),
+    DEPLOY_TIMEOUT_MS,
+  );
+  t.unref();
+});
+
 const contract = await api.withStatus('Deploying Oru contract (generating ZK proof)', () =>
-  api.deploy(providers, privateState),
+  Promise.race([api.deploy(providers, privateState), watchdog]),
 );
 const address = contract.deployTxData.public.contractAddress;
 

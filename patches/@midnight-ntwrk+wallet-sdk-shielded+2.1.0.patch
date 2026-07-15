@@ -1,0 +1,42 @@
+diff --git a/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/CoreWallet.js b/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/CoreWallet.js
+index 60db0d8..88528e2 100644
+--- a/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/CoreWallet.js
++++ b/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/CoreWallet.js
+@@ -107,7 +107,18 @@ export const CoreWallet = {
+         return { ...wallet, state: newState, coinHashes: newCoinHashes };
+     },
+     replayEvents(wallet, secretKeys, events) {
+-        const newState = wallet.state.replayEvents(secretKeys, events);
++        // ORU fast-sync patch: skip events already reflected in a bootstrapped
++        // collapsed-tree snapshot (see dust-wallet CoreWallet.js for details).
++        let newState = wallet.state;
++        for (const ev of events) {
++            try {
++                newState = newState.replayEvents(secretKeys, [ev]);
++            } catch (e) {
++                const m = String(e?.message ?? e).match(/expected to insert index (\d+), but received (\d+)/);
++                if (m && Number(m[2]) < Number(m[1])) continue;
++                throw e;
++            }
++        }
+         const newCoinHashes = CoinHashesMap.updateWithCoins(secretKeys, wallet.coinHashes, CoinHashesMap.pickAllCoins(newState));
+         return { ...wallet, state: newState, coinHashes: newCoinHashes };
+     },
+diff --git a/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/Sync.js b/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/Sync.js
+index 4b30fb7..b19a910 100644
+--- a/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/Sync.js
++++ b/node_modules/@midnight-ntwrk/wallet-sdk-shielded/dist/v1/Sync.js
+@@ -88,9 +88,10 @@ export const makeEventsSyncService = (config) => {
+                 return Stream.fail(new SyncWalletError(new Error(`Invalid indexer WS URL: ${indexerWsUrlResult.left.message}`)));
+             }
+             const indexerWsUrl = indexerWsUrlResult.right;
+-            const appliedIndex = state.progress?.appliedIndex ?? 0n;
+-            const batchSize = config.batchSize ?? 10;
+-            return pipe(ZswapEvents.run({ id: Number(appliedIndex) }), Stream.provideLayer(WsSubscriptionClient.layer({ url: indexerWsUrl, keepAlive: config.indexerClientConnection.keepAlive })), Stream.mapError((error) => new SyncWalletError(error)), Stream.mapEffect((subscription) => pipe(subscription.zswapLedgerEvents, Schema.decodeUnknownEither(EventsSyncUpdateFromPayload), Either.mapLeft((err) => new SyncWalletError(err)), EitherOps.toEffect)), Stream.groupedWithin(batchSize, Duration.millis(1)), Stream.map(Chunk.toArray), Stream.map((data) => WalletSyncUpdate.create(data, secretKeys)), Stream.schedule(Schedule.spaced(Duration.millis(4))));
++            const syncFromOverride = typeof process !== 'undefined' && process.env?.ORU_SYNC_FROM ? BigInt(process.env.ORU_SYNC_FROM) : 0n;
++            const appliedIndex = (state.progress?.appliedIndex ?? 0n) > syncFromOverride ? (state.progress?.appliedIndex ?? 0n) : syncFromOverride;
++            const batchSize = config.batchSize ?? 2000;
++            return pipe(ZswapEvents.run({ id: Number(appliedIndex) }), Stream.provideLayer(WsSubscriptionClient.layer({ url: indexerWsUrl, keepAlive: config.indexerClientConnection.keepAlive })), Stream.mapError((error) => new SyncWalletError(error)), Stream.mapEffect((subscription) => pipe(subscription.zswapLedgerEvents, Schema.decodeUnknownEither(EventsSyncUpdateFromPayload), Either.mapLeft((err) => new SyncWalletError(err)), EitherOps.toEffect)), Stream.groupedWithin(batchSize, Duration.millis(25)), Stream.map(Chunk.toArray), Stream.map((data) => WalletSyncUpdate.create(data, secretKeys)), Stream.schedule(Schedule.spaced(Duration.millis(0))));
+         },
+     };
+ };

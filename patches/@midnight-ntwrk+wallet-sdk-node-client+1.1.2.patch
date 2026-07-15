@@ -1,0 +1,20 @@
+diff --git a/node_modules/@midnight-ntwrk/wallet-sdk-node-client/dist/effect/PolkadotNodeClient.js b/node_modules/@midnight-ntwrk/wallet-sdk-node-client/dist/effect/PolkadotNodeClient.js
+index d057898..d1ccc3d 100644
+--- a/node_modules/@midnight-ntwrk/wallet-sdk-node-client/dist/effect/PolkadotNodeClient.js
++++ b/node_modules/@midnight-ntwrk/wallet-sdk-node-client/dist/effect/PolkadotNodeClient.js
+@@ -37,10 +37,11 @@ export class PolkadotNodeClient {
+                 throwOnConnect: false,
+                 noInitWarn: true,
+             });
+-            // Disconnect immediately after loading metadata to avoid keeping the WebSocket open.
+-            // The health-check timer (10s interval) and timeout handler (5s interval) are cleared on disconnect.
+-            // Metadata and type registry remain cached in memory for subsequent on-demand connections.
+-            await api.disconnect();
++            // ORU patch: KEEP the WebSocket open. The public preprod RPC
++            // reliably serves the initial connection but stalls @polkadot/api's
++            // re-init on reconnect ("No response received from RPC endpoint in
++            // 60s"), which leaves tx submission hanging forever. Holding the
++            // startup connection avoids the reconnect path entirely.
+             return api;
+         }), (api) => Effect.promise(() => api.disconnect())).pipe(Effect.map((api) => new PolkadotNodeClient(config, api)));
+     }

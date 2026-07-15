@@ -1,0 +1,58 @@
+diff --git a/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/CoreWallet.js b/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/CoreWallet.js
+index 93bdb56..87c94f8 100644
+--- a/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/CoreWallet.js
++++ b/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/CoreWallet.js
+@@ -49,8 +49,22 @@ export const CoreWallet = {
+         };
+     },
+     applyEvents(wallet, secretKey, events, currentTime) {
+-        // TODO: replace currentTime with `updatedState.syncTime` introduced in ledger-6.2.0-rc.1
+-        const updatedState = wallet.state.replayEvents(secretKey, events).processTtls(currentTime);
++        // ORU fast-sync patch: after bootstrapping from a collapsed Merkle tree
++        // snapshot, the first few streamed events may already be reflected in
++        // the tree (the indexer's tree ingestion runs slightly ahead of its
++        // event stream). Replay one-by-one and skip events whose insertions
++        // land BEHIND the tree head; safe for wallets with no prior activity.
++        let replayed = wallet.state;
++        for (const ev of events) {
++            try {
++                replayed = replayed.replayEvents(secretKey, [ev]);
++            } catch (e) {
++                const m = String(e?.message ?? e).match(/expected to insert index (\d+), but received (\d+)/);
++                if (m && Number(m[2]) < Number(m[1])) continue;
++                throw e;
++            }
++        }
++        const updatedState = replayed.processTtls(currentTime);
+         const availableNonces = updatedState.utxos.map((utxo) => utxo.nonce);
+         return {
+             ...wallet,
+diff --git a/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/Sync.js b/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/Sync.js
+index 26f3e2a..69cd0fb 100644
+--- a/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/Sync.js
++++ b/node_modules/@midnight-ntwrk/wallet-sdk-dust-wallet/dist/v1/Sync.js
+@@ -67,9 +67,9 @@ export const makeDefaultSyncService = (config) => {
+     const indexerSyncService = makeIndexerSyncService(config);
+     return {
+         updates: (state, secretKey) => {
+-            const batchSize = 10;
+-            const batchTimeout = Duration.millis(1);
+-            return pipe(indexerSyncService.subscribeWallet(state), Stream.groupedWithin(batchSize, batchTimeout), Stream.map(Chunk.toArray), Stream.map((data) => WalletSyncUpdate.create(data, secretKey, new Date())), Stream.schedule(Schedule.spaced(Duration.millis(4))), Stream.provideSomeLayer(indexerSyncService.connectionLayer()));
++            const batchSize = 2000;
++            const batchTimeout = Duration.millis(25);
++            return pipe(indexerSyncService.subscribeWallet(state), Stream.groupedWithin(batchSize, batchTimeout), Stream.map(Chunk.toArray), Stream.map((data) => WalletSyncUpdate.create(data, secretKey, new Date())), Stream.schedule(Schedule.spaced(Duration.millis(0))), Stream.provideSomeLayer(indexerSyncService.connectionLayer()));
+         },
+         blockData: () => {
+             return Effect.gen(function* () {
+@@ -107,8 +107,10 @@ export const makeIndexerSyncService = (config) => {
+         },
+         subscribeWallet(state) {
+             const { appliedIndex } = state.progress;
++            const syncFromOverride = typeof process !== 'undefined' && process.env?.ORU_SYNC_FROM ? BigInt(process.env.ORU_SYNC_FROM) : 0n;
++            const effectiveIndex = appliedIndex > syncFromOverride ? appliedIndex : syncFromOverride;
+             return pipe(DustLedgerEvents.run({
+-                id: Number(appliedIndex),
++                id: Number(effectiveIndex),
+             }), Stream.mapEffect((subscription) => pipe(Schema.decodeUnknownEither(SyncEventsUpdateSchema)(subscription.dustLedgerEvents), Either.mapLeft((err) => new SyncWalletError(err)), EitherOps.toEffect)), Stream.mapError((error) => new SyncWalletError(error)));
+         },
+     };

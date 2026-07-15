@@ -1,7 +1,7 @@
 {
   "name": "oru",
   "version": "0.1.0",
-  "description": "Oru \u2014 a privacy-first freelance marketplace on Midnight",
+  "description": "Oru — a privacy-first freelance marketplace on Midnight",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -13,13 +13,15 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspace contract",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "patch-package": "^8.0.1",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.0",
-    "@types/ws": "^8.18.1"
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

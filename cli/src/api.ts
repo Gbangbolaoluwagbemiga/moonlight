@@ -38,6 +38,7 @@ import {
   OruPrivateStateId,
 } from './common-types';
 import { type Config, contractConfig } from './config';
+import { buildFastSyncSnapshots, type FastSyncSnapshots } from './fast-sync';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { assertIsContractAddress, toHex } from '@midnight-ntwrk/midnight-js/utils';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
@@ -302,11 +303,27 @@ export const createWalletAndMidnightProvider = async (
   };
 };
 
+const describeProgress = (label: string, progress: any): string => {
+  try {
+    const json = JSON.stringify(progress, (_, v) => (typeof v === 'bigint' ? v.toString() : v));
+    return `${label}=${json}`;
+  } catch {
+    return `${label}=?`;
+  }
+};
+
 /** Wait until the wallet has fully synced with the network. Returns the synced state. */
 export const waitForSync = (wallet: WalletFacade) =>
   Rx.firstValueFrom(
     wallet.state().pipe(
-      Rx.throttleTime(5_000),
+      Rx.throttleTime(15_000),
+      Rx.tap((state: any) => {
+        if (!state.isSynced) {
+          console.log(
+            `\n  [sync] ${describeProgress('shielded', state.shielded?.state?.progress)} ${describeProgress('unshielded', state.unshielded?.progress)} ${describeProgress('dust', state.dust?.state?.progress)}`,
+          );
+        }
+      }),
       Rx.filter((state) => state.isSynced),
     ),
   );
@@ -461,13 +478,27 @@ const registerForDustGeneration = async (
  * Prints a formatted wallet summary showing all three wallet types
  * (Shielded, Unshielded, Dust) with their addresses and balances.
  */
+const tryOr = (fallback: string, fn: () => string): string => {
+  try {
+    return fn();
+  } catch {
+    return fallback;
+  }
+};
+
 const printWalletSummary = (state: any, unshieldedKeystore: UnshieldedKeystore) => {
   const networkId = getNetworkId();
   const unshieldedBalance = state.unshielded.balances[unshieldedToken().raw] ?? 0n;
 
-  const coinPubKey = ShieldedCoinPublicKey.fromHexString(state.shielded.coinPublicKey.toHexString());
-  const encPubKey = ShieldedEncryptionPublicKey.fromHexString(state.shielded.encryptionPublicKey.toHexString());
-  const shieldedAddress = MidnightBech32m.encode(networkId, new ShieldedAddress(coinPubKey, encPubKey)).toString();
+  const shieldedAddress = tryOr('(unavailable)', () => {
+    const coinPubKey = ShieldedCoinPublicKey.fromHexString(
+      state.shielded.coinPublicKey.toHexString?.() ?? state.shielded.coinPublicKey,
+    );
+    const encPubKey = ShieldedEncryptionPublicKey.fromHexString(
+      state.shielded.encryptionPublicKey.toHexString?.() ?? state.shielded.encryptionPublicKey,
+    );
+    return MidnightBech32m.encode(networkId, new ShieldedAddress(coinPubKey, encPubKey)).toString();
+  });
 
   const DIV = '──────────────────────────────────────────────────────────────';
 
@@ -484,7 +515,7 @@ ${DIV}
   └─ Balance: ${formatBalance(unshieldedBalance)} tNight
 
   Dust
-  └─ Address: ${MidnightBech32m.encode(networkId, state.dust.address).toString()}
+  └─ Address: ${tryOr('(unavailable)', () => MidnightBech32m.encode(networkId, state.dust.address).toString())}
 
 ${DIV}`);
 };
@@ -504,6 +535,15 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
       const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
       const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
 
+      // ORU_FAST_SYNC=1: bootstrap the shielded/dust wallets from indexer
+      // collapsed Merkle tree updates instead of replaying full chain history.
+      // Only valid for wallets with no prior shielded/dust activity.
+      let snapshots: FastSyncSnapshots | undefined;
+      if (process.env.ORU_FAST_SYNC === '1') {
+        console.log('\n  Fast-sync enabled (fresh wallet): bootstrapping from collapsed Merkle tree updates');
+        snapshots = await buildFastSyncSnapshots(config, shieldedSecretKeys, dustSecretKey, getNetworkId());
+      }
+
       const walletConfig = {
         ...buildShieldedConfig(config),
         ...buildUnshieldedConfig(config),
@@ -511,10 +551,15 @@ export const buildWalletAndWaitForFunds = async (config: Config, seed: string): 
       };
       const wallet = await WalletFacade.init({
         configuration: walletConfig,
-        shielded: (cfg) => ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
+        shielded: (cfg) =>
+          snapshots
+            ? ShieldedWallet(cfg).restore(snapshots.shieldedSnapshot)
+            : ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
         unshielded: (cfg) => UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
         dust: (cfg) =>
-          DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+          snapshots
+            ? DustWallet(cfg).restore(snapshots.dustSnapshot)
+            : DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
       });
       await wallet.start(shieldedSecretKeys, dustSecretKey);
 

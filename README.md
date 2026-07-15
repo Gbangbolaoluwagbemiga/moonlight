@@ -8,8 +8,8 @@ Built for the **Monthly Moonshots on Midnight** builder program. Current level: 
 
 | Network | Address |
 |---------|---------|
+| Preprod | `43417527ae01b89855ed4befa4fc3a064bcb0f182d142cf3c15c00ad50051fa2` |
 | Preview | _not deployed_ |
-| Preprod | _pending — will be published after first deployment_ |
 
 ## What This Does
 
