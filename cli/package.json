@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preview.ts",
     "preprod": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preprod.ts",
+    "deploy:preprod": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/deploy.ts",
     "preprod-ps": "docker compose -f proof-server.yml pull && node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm src/preprod-start-proof-server.ts"
   },
   "dependencies": {

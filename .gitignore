@@ -13,6 +13,7 @@ logs/
 *.env
 !*.env.example
 *.seed
+wallet.seed
 midnight-level-db/
 
 # Test reports / coverage
