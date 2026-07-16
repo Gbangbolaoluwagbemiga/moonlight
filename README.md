@@ -108,7 +108,13 @@ Oru is a freelance marketplace where the deal is on-chain but the details are no
 
 ## Screenshots
 
-_See [docs/screenshots/](docs/screenshots/) — compile output and deployed contract address screenshots will be added here._
+**Successful compile** — all 5 circuits with constraint counts:
+
+![Compile output](docs/screenshots/compact.png)
+
+**Deployed contract address (Preprod):**
+
+![Deployed contract address](docs/screenshots/address.png)
 
 Compile output (text capture): [docs/compile-output.txt](docs/compile-output.txt)
 

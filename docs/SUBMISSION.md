@@ -11,8 +11,8 @@ Status against the Rise In requirements:
 | Initial product idea paragraph in README | ✅ ["Initial Idea"](../README.md#initial-idea) |
 | README section: public state vs private witness | ✅ ["Public state vs private witness"](../README.md#public-state-vs-private-witness) |
 | Minimum 5 meaningful commits | ✅ see `git log --oneline` |
-| Screenshot: successful compile output | ⏳ run `npm run compact` and capture the terminal |
-| Screenshot: contract deployed with address shown | ⏳ after deployment |
+| Screenshot: successful compile output | ✅ [screenshots/compact.png](screenshots/compact.png) |
+| Screenshot: contract deployed with address shown | ✅ [screenshots/address.png](screenshots/address.png) |
 
 ## Reproducing the compile
 
