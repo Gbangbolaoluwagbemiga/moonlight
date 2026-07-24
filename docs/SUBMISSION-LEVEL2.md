@@ -9,11 +9,11 @@ Status against the Rise In requirements:
 | Proof generated locally | ✅ `httpClientProofProvider` → local proof server (`localhost:6300`) in [lib/wallet.ts](../web/src/lib/wallet.ts) |
 | An observable privacy behavior (something proven without being shown) | ✅ "Proved without revealing your input" label; private inputs never rendered — see ["Privacy Claim"](../README.md#privacy-claim) |
 | Contract deployed to Preprod with a verifiable address | ✅ Preprod: `43417527ae01b89855ed4befa4fc3a064bcb0f182d142cf3c15c00ad50051fa2` (unchanged from Level 1) |
-| Minimum 8 meaningful commits | ⏳ see `git log --oneline` after this work is committed |
+| Minimum 8 meaningful commits | ✅ see `git log --oneline` |
 | Public GitHub repository with README | ✅ this repo, README updated with Level 2 sections |
 | Live demo link (Vercel, Netlify, or similar) | ✅ [oru-web-beta.vercel.app](https://oru-web-beta.vercel.app/) |
 | Deployed Preprod contract address (verifiable on-chain) | ✅ same as above |
-| Demo video: wallet connect + a successful circuit call | ⏳ record per the checklist below |
+| Demo video: wallet connect + a successful circuit call | ✅ [Watch on Loom](https://www.loom.com/share/1f8b2270477e4a34a2a049f2e78c38e9) |
 | README documenting the privacy claim | ✅ ["Privacy Claim"](../README.md#privacy-claim) |
 
 ## On-chain evidence (Preprod)
@@ -50,6 +50,4 @@ Then: connect Lace (set to **Preprod**), fund it with tNight from the faucet, **
 
 ## Remaining steps
 
-1. `vercel --prod` (or Netlify equivalent) → paste the live URL into `README.md`'s "Live Demo" section.
-2. Record the demo video per the checklist above; add the link to `README.md`'s "Demo Video" placeholder.
-3. `git add -A && git commit` (repeat until ≥ 8 meaningful commits for this level), then `git push`.
+All Level 2 checklist items above are complete. Only the Rise In portal submission (pasting repo URL, live demo URL, and video link into the form) is left.
