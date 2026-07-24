@@ -16,6 +16,9 @@ logs/
 wallet.seed
 midnight-level-db/
 
+# Generated: synced from contract/src/managed at build time (web/scripts/sync-managed.mjs)
+web/public/managed/
+
 # Test reports / coverage
 coverage/
 **/reports/
