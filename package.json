@@ -15,16 +15,16 @@
     "test": "npm run test --workspace contract",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package || true"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
-    "patch-package": "^8.0.1",
     "typescript": "^6.0.2",
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "patch-package": "^8.0.1",
     "@midnight-ntwrk/compact-runtime": "0.16.0",
     "@midnight-ntwrk/ledger-v8": "^8.0.0",
     "@midnight-ntwrk/midnight-js": "^4.0.4",
